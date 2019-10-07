@@ -14,6 +14,8 @@ pip install path-tree
 ### Quick start
 
 ```python
+import pathtree
+
 paths = pathtree.Paths.define('./logs', {
     '{log_id}': {
         'model.h5': 'model',
