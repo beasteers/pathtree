@@ -24,7 +24,7 @@ assert p['model_spec'] == 'logs/a/model_spec.pkl'
 
 print(paths['plot'].partial_format())
 print(paths['plot'].glob_pattern)
-print(paths['plot'].matching)
+print(paths['plot'].matching_files)
 
 p2 = paths.format(root='logs', log_id='b')
 assert p['model'] == 'logs/a/model.h5'

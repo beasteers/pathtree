@@ -3,17 +3,12 @@ import glob
 import pathlib
 from .pformat import *
 
-__all__ = ['Paths']
+__all__ = ['Paths', 'Path']
 
 class Paths(object):
     '''
 
-    TODO:
-     - how do you manage in both representations (flattened and hierarchical)
-        - first step - manage in compiled view - assume unmutable
-     - partial string substitution
-     -
-
+    Example
     -------
 
     paths = Paths.define('./blah/logs', {
@@ -22,7 +17,8 @@ class Paths(object):
             'model_spec.pkl': 'model_spec',
             'plots': {
                 '{step_name}': {
-                    '{plot_name}.png': 'plot'
+                    '{plot_name}.png': 'plot',
+                    '': 'plot_dir'
                 }
             }
         }
@@ -30,10 +26,10 @@ class Paths(object):
 
     paths = paths.format(root='logs', log_id='adfasdfasdf', step_name='epoch_100')
 
-    paths['model'] # logs/adfasdfasdf/model.h5
-    paths['plot'] # logs/adfasdfasdf/plots/epoch_100/{plot_name}.png
+    paths.model # logs/adfasdfasdf/model.h5
+    paths.plot # logs/adfasdfasdf/plots/epoch_100/{plot_name}.png
 
-    plot_files = glob.glob(paths['plots'].format(plot_name='*'))
+    plot_files = glob.glob(paths['plot'].format(plot_name='*'))
 
     '''
 
@@ -41,14 +37,50 @@ class Paths(object):
         self._paths = paths
         self.data = {} if data is None else data
 
+        for path in self._paths.values():
+            path.parent = self
+
     @staticmethod
     def define(root, paths):
-        '''Build paths from hierarchy'''
+        '''Build paths from a directory spec.
+
+        Arguments:
+            root (str): the root directory.
+            paths (dict): the directory structure.
+
+        Returns:
+            The initialized Paths object
+        '''
         data = {'root': root} if root else {}
-        return Paths({
-            v: Path(*k, data=data)
-            for k, v in get_keys({'{root}': paths})
-        }, data)
+        return Paths({v: Path(*k) for k, v in get_keys({'{root}': paths})},
+                     data)
+
+    @property
+    def paths(self):
+        return self._paths
+
+    @property
+    def copy(self):
+        return Paths({name: path.copy for name, path in self._paths.items()},
+                     dict(self.data))
+
+    def add(self, root, paths):
+        '''Build paths from a directory spec.
+
+        Arguments:
+            root (str): the root directory.
+            paths (dict): the directory structure.
+
+        Returns:
+            The initialized Paths object
+        '''
+        if not isinstance(paths, Paths):
+            paths = Paths.define(None, {root: paths})
+
+        self.paths.update(paths.paths)
+        for path in paths.paths.values():
+            path.parent = self
+        return self
 
     def __repr__(self):
         return '<Paths data={} \n{}\n>'.format(self.data, '\n'.join([
@@ -56,58 +88,74 @@ class Paths(object):
             for name in self._paths
         ]))
 
-    def __nonzero__(self):
-        return 'root' in self.data
-
     def __iter__(self):
         return iter(self._paths)
 
     def __getitem__(self, name):
-        return self._paths[name]
+        return self._paths[name].copy
 
     def __getattr__(self, name):
         try:
-            return self._paths[name]
+            return self[name]
         except KeyError:
             raise AttributeError()
 
     def get(self, name, **kw):
-        '''Get a path with possibly'''
-        return self._paths[name].specify(**kw)
+        '''Get a copy of a path object, optionally adding '''
+        return self[name].update(**kw)
 
     def parse(self, path, name):
+        '''Parse data from a formatted string (reverse of string format)
+
+        Arguments:
+            path (str): the string to parse
+            name (str): the name of the path pattern to use.
+        '''
         return self[name].parse(path)
 
     def mkdirs(self, exist_ok=True):
+        '''Instantiate all fully specified directories'''
         for name, path in self.format().items():
             if path and not isinstance(path, Path):
                 os.makedirs(os.path.dirname(path), exist_ok=exist_ok)
 
     def update(self, **kw):
-        '''Update in place'''
+        '''Update format data in place.'''
         self.data.update(kw)
-        for name in self._paths:
-            self._paths.update(**kw)
         return self
 
     def specify(self, **kw):
-        '''Return new Paths with added variables'''
-        return Paths({
-            name: self._paths[name].specify(**kw)
-            for name in self._paths
-        }, {**self.data, **kw})
+        '''Return a new Paths object with added variables for each pattern.'''
+        return self.copy.update(**kw)
+
+    def unspecify(self, *keys):
+        '''Remove keys from paths dictionary'''
+        p = self.copy
+        for key in keys:
+            del p.data[key]
+        return p
+
+    @property
+    def fully_specified(self):
+        return all(p.fully_specified for p in self._paths)
 
     def format(self, **kw):
-        return {
-            name: self._paths[name].maybe_format(**kw)
-            for name in self._paths
-        }
+        '''Return a dictionary where all fully specified paths are converted to strings
+        and underspecified strings are left as Path objects.
+
+        Arguments:
+            **kw: additional data specified for formatting.
+        '''
+        return {name: self[name].maybe_format(**kw) for name in self}
 
     def partial_format(self, **kw):
-        return {
-            name: self._paths[name].partial_format(**kw)
-            for name in self._paths
-        }
+        '''Return a dictionary where all paths are converted to strings
+        and underspecified fields are left in for later formatting.
+
+        Arguments:
+            **kw: additional data specified for formatting.
+        '''
+        return {name: self[name].partial_format(**kw) for name in self}
 
 
 class Path(os.PathLike):
@@ -134,58 +182,93 @@ class Path(os.PathLike):
     # missing will convert to glob pattern and return all matching files
     assert isinstance(path.matching)
     '''
-    def __init__(self, *path, data=None):
+    def __init__(self, *path, data=None, parent=None):
         self._path = pathlib.Path(*path)
         self.data = {} if data is None else data
+        self.parent = parent
 
     def __str__(self):
-        '''Return path with all available variables inserted.
-        '''
+        '''The path as a string (partially formatted)'''
         return self.partial_format()
 
     def __fspath__(self):
         return self.format()
 
     def __repr__(self):
-        return '<Path "{}" data={}>'.format(self.path, self.data)
+        return '<Path "{}" data={}>'.format(self.path, self.path_data)
 
     def __getattr__(self, name):
         return getattr(self._path, name)
 
     @property
     def path(self):
+        '''The path object as a string (unformatted)'''
         return str(self._path)
 
     @property
-    def s(self):
-        return str(self)
+    def path_data(self):
+        '''Both the path specific data and the paths group data'''
+        return {**self.parent.data, **self.data}
 
     def update(self, **kw):
+        '''Update specified data in place'''
         self.data.update(**kw)
         return self
 
     def specify(self, **kw):
-        return Path(self._path, data={**self.data, **kw})
+        '''Update specified data and return a new object'''
+        return self.copy.update(**kw)
+
+    def unspecify(self, *keys):
+        '''Remove keys from path dictionary'''
+        p = self.copy
+        if p.parent:
+            p.parent = p.parent.unspecify(*keys)
+
+        for key in keys:
+            del p.data[key]
+        return p
 
     @property
     def fully_specified(self):
+        '''Check if the path is fully specified.'''
         try:
             self.format()
             return True
         except KeyError:
             return False
 
-    def format(self, **kw):
-        '''Works like string format.'''
-        return self.path.format(**{**self.data, **kw})
+    @property
+    def unspecified(self):
+        '''Get a path without any attached data.'''
+        return Path(self._path)
 
-    def parse(self, path):
+    @property
+    def copy(self):
+        return Path(self._path, data=dict(self.data), parent=self.parent)
+
+    def format(self, **kw):
+        '''Insert data into the path string. (Works like string format.)
+
+        Raises:
+            KeyError if the format string is underspecified.
+        '''
+        return self.path.format(**{**self.path_data, **kw})
+
+    def parse(self, path, use_data=True):
         '''Extract variables from a compiled path'''
         from parse import parse
-        r = parse(self.path, path)
-        return r.fixed, r.named
+        pattern = self.partial_format() if use_data else self.path
+        r = parse(pattern, path)
+        if not r:
+            raise ValueError('Could not parse path using pattern '
+                             '(\n\tpath:{}) (\n\tpattern:{})'.format(
+                                 path, pattern))
+        data = r.named
+        return {**self.path_data, **data} if use_data else data
 
     def maybe_format(self, **kw):
+        '''Try to format a field. If it fails, return as a Path object.'''
         p = self.specify(**kw)
         try:
             return p.format()
@@ -193,18 +276,22 @@ class Path(os.PathLike):
             return p
 
     def partial_format(self, **kw):
-        return pformat(self.path, {**self.data, **kw})
+        '''Format a field, leaving all unspecified fields to be filled later.'''
+        return pformat(self.path, **{**self.path_data, **kw})
 
     @property
     def glob_pattern(self):
-        return gformat(self.path, self.data)
+        '''Format a field, setting all unspecified fields as a wildcard (asterisk).'''
+        return gformat(self.path, **self.path_data)
 
     @property
-    def matching(self):
+    def matching_files(self):
+        '''Find all matching files. unspecified fields are set as a wildcard (asterisk).'''
         return glob.glob(self.glob_pattern)
 
 
 def get_keys(data, keys=None):
+    '''Recursively traverse a nested dict and return the trail of keys, and the final value'''
     keys = tuple(keys or ())
     for key, value in data.items():
         keys_ = keys + (key,)
