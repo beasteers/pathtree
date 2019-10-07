@@ -1,8 +1,8 @@
 import setuptools
 
 setuptools.setup(name='path-tree',
-                 version='0.0.8',
-                 description='Specify a directory structure using placeholders',
+                 version='0.0.9',
+                 description='Define named directory structure using placeholders',
                  # long_description=open('README.md').read().strip(),
                  author='Bea Steers',
                  author_email='bea.steers@gmail.com',
@@ -16,4 +16,4 @@ setuptools.setup(name='path-tree',
                  ],
                  license='MIT License',
                  zip_safe=False,
-                 keywords='path directory structure format')
+                 keywords='path directory structure partial format')
