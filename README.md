@@ -63,7 +63,7 @@ plot_dir = os.path.join(run_dir, 'plots', 'epoch_{i_epoch:04d}')
 plot_file = os.path.join(plot_dir, '{plot_name}.png')
 ```
 
-### The new way ! *brain smiles*
+### The new way ! **\*brain smiles\***
 
 Instead, you can define your path hierarchy all in one place and give each tree node a name.
 
