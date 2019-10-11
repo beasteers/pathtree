@@ -41,7 +41,7 @@ class Paths(object):
             path.parent = self
 
     @staticmethod
-    def define(root, paths):
+    def define(root, paths=None):
         '''Build paths from a directory spec.
 
         Arguments:
@@ -51,7 +51,10 @@ class Paths(object):
         Returns:
             The initialized Paths object
         '''
+        if isinstance(root, dict):
+            root, paths = '.', root
         data = {'root': root} if root else {}
+
         return Paths({v: Path(*k) for k, v in get_keys({'{root}': paths})},
                      data)
 
@@ -284,10 +287,9 @@ class Path(os.PathLike):
         '''Format a field, setting all unspecified fields as a wildcard (asterisk).'''
         return gformat(self.path, **self.path_data)
 
-    @property
-    def matching_files(self):
+    def glob(self):
         '''Find all matching files. unspecified fields are set as a wildcard (asterisk).'''
-        return glob.glob(self.glob_pattern)
+        return sorted(glob.glob(self.glob_pattern))
 
 
 def get_keys(data, keys=None):
