@@ -230,3 +230,7 @@ expected = {
 plot_data = plot_file.parse('./logs/12345/plots/0002/f1_score.png')
 assert set(plot_data.items()) == set(expected.items())
 ```
+
+### Usage Example
+I was using it for a project and only after did I realize how simple it made file management. I was able to take a bunch of h5 files, parse out the path components, and translate them to their corresponding audio file in another directory all while keeping a single point of truth for my file structure in the path definition.
+![jupyter lab usage example](/assets/example.png)
