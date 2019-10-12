@@ -206,7 +206,7 @@ assert (plot_file.partial_format() ==
         './logs/12345/plots/epoch_{i_epoch:04d}/f1_score.png')
 assert (plot_file.glob_pattern ==
         './logs/12345/plots/epoch_*/f1_score.png')
-assert (plot_file.matching_files ==
+assert (plot_file.glob() ==
         glob.glob('./logs/12345/plots/epoch_*/f1_score.png'))
 ```
 
