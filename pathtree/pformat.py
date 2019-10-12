@@ -46,6 +46,12 @@ class GlobFormatter(string.Formatter):
 
     For any missing keys, an asterisk will be inserted.
 
+    This is necessary for any fields where non-string format specifiers
+    are used. For example:
+
+    `'logs/epoch_{i_epoch:04f}'.format(i_epoch='*')`
+
+    This will fail because `:04f` is an invalid formatter for `'*'`.
 
     '''
     def get_field(self, key, a, kw):
@@ -65,7 +71,61 @@ class GlobFormatter(string.Formatter):
         return super().format_field(obj, format_spec)
 
 
+
+class RegexFormatter(string.Formatter):
+    '''Regex match formatting
+    Make sure that a string matches a regular expression before inserting.
+
+    Example
+    -------
+    >>> rformat('{i:/\d[^\d]*/}', i='3aasdfasdf')
+    '3aasdfasdf'
+    >>> rformat('{i:/\d[^\d]*/}', i='a3aasdfasdf')
+    ---------------------------------------------------------------------------
+    ValueError                                Traceback (most recent call last)
+    ...
+    ValueError: Input (a3aasdfasdf) did not match the regex pattern (/\d[^\d]*/)
+    '''
+    def format_field(self, obj, format_spec):
+        import re
+        if format_spec.startswith('/') and format_spec.endswith('/'):
+            obj = str(obj) # coerce to string for re
+            if re.match(format_spec[1:-1], obj):
+                return obj
+
+            raise ValueError(
+                'Input ({}) did not match the regex pattern ({})'.format(
+                    obj, format_spec))
+        return super().format_field(obj, format_spec)
+
+
+
+def _try_all(func, collection='children'):
+    def inner(self, *a, **kw):
+        objs = list(getattr(self, collection)) + [self]
+        e = Exception('Error thrown in {}.{}'.format(self, func.__name__))
+        for o in objs:
+            try:
+                return getattr(o, func.__name__)(*a, **kw)
+            except Exception as e:
+                continue
+        raise e
+    return inner
+
+class MultiFormatter(string.Formatter):
+    # TODO: this is only a sketch
+    '''Use multiple format rules with fallback'''
+    def __init__(self, *children):
+        self.children = children
+
+    get_field = _try_all(string.Formatter.get_field, 'children')
+    convert_field = _try_all(string.Formatter.convert_field, 'children')
+    format_field = _try_all(string.Formatter.format_field, 'children')
+
+
+
 class Field:
+    '''This is used to mark a field of interest.'''
     def __init__(self, key=None, conv=None, spec=None, value=None):
         self.key, self.conv, self.spec, self.value = (
             key, conv, spec, value)
