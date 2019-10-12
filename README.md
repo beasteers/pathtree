@@ -232,5 +232,5 @@ assert set(plot_data.items()) == set(expected.items())
 ```
 
 ### Usage Example
-I was using it for a project and only after did I realize how simple it made file management. I was able to take a bunch of h5 files, parse out the path components, and translate them to their corresponding audio file in another directory all while keeping a single point of truth for my file structure in the path definition.
+Here's a screenshot from one of the projects I'm using pathtree in and I really like how it simplifies defining the structure of your project files. I'm able to take a bunch of h5 files, parse out the path components, and translate them to their corresponding audio and jams file in another directory all while keeping a single point of truth for my file structure in the path definition. :)
 ![jupyter lab usage example](/assets/example.png)
