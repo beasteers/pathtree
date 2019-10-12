@@ -144,14 +144,14 @@ assert isinstance(
     paths.plot.maybe_format(plot_name='f1_score'), pathtree.Path)
 ```
 
-You also have more pythonic ways of using `Path` i.e. type conversions.
+Paths are castable to string which is the same as `partial_format`. You can also access the unformatted path using `Path().path`.
 
 ```python
 assert str(paths.plot) == paths.plot.partial_format()
 assert paths.plot.path == the_unformatted_plot_path
 ```
 
-`Path` subclasses `os.PathLike`, meaning that os.path functions know how to convert it to a path automatically.
+`pathtree.Path` subclasses `os.PathLike`, meaning that os.path functions know how to convert it to a path automatically.
 
 ```python
 assert isinstance(paths.model, os.PathLike)
@@ -211,7 +211,7 @@ assert (plot_file.matching_files ==
 ```
 
 You can also sometimes parse out data from a formatted string. Be warned,
-it may not always work correctly because sometimes the parsing is ambiguous.
+it may not always work correctly because sometimes the parsing is ambiguous. See https://github.com/r1chardj0n3s/parse#potential-gotchas
 
 ```python
 plot_file = paths.plot.specify(root='some/logs')
