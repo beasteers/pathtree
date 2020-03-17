@@ -16,7 +16,7 @@ pip install path-tree
 ```python
 import pathtree
 
-paths = pathtree.Paths.define('./logs', {
+paths = pathtree.paths('./logs', {
     '{log_id}': {
         'model.h5': 'model',
         'model_spec.pkl': 'model_spec',
@@ -85,7 +85,7 @@ import pathtree
 # of the fact that os.path.join('plots', '') == 'plots'.
 # So the name assigned to the blank string is naming the
 # directory
-base_paths = pathtree.Paths.define('./logs', {
+base_paths = pathtree.paths('./logs', {
     '{log_id}': {
         'model.h5': 'model',
         'model_spec.pkl': 'model_spec',

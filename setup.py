@@ -1,19 +1,18 @@
 import setuptools
 
 setuptools.setup(name='path-tree',
-                 version='0.0.10',
+                 version='0.0.11',
                  description='Define named directory structure using placeholders',
-                 # long_description=open('README.md').read().strip(),
+                 long_description=open('README.md').read().strip(),
+                 long_description_content_type='text/markdown',
                  author='Bea Steers',
                  author_email='bea.steers@gmail.com',
-                 # url='http://path-to-my-packagename',
+                 url='https://github.com/beasteers/pathtree',
                  packages=setuptools.find_packages(),
                  # py_modules=['packagename'],
-                 # package_data={'uoimdb': {'*.yaml'}},
+                 # package_data={'<PACKAGE>': {'*.yaml'}},
                  # include_package_data=True,
-                 install_requires=[
-                    'parse',
-                 ],
+                 install_requires=['parse'],
                  license='MIT License',
                  zip_safe=False,
-                 keywords='path directory structure partial format')
+                 keywords='path directory tree structure partial format')

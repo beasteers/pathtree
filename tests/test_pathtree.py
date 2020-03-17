@@ -4,6 +4,9 @@ import pathtree as pt
 
 def test_paths():
     paths = pt.Paths.define('./blah/logs', {
+        '{log_id}': {}
+    })
+    paths = pt.paths('./blah/logs', {
         '{log_id}': {
             'model.h5': 'model',
             'model_spec.pkl': 'model_spec',

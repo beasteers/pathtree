@@ -1,9 +1,27 @@
 import os
 import glob
 import pathlib
+from functools import wraps
 from .pformat import *
 
-__all__ = ['Paths', 'Path']
+__all__ = ['Paths', 'Path', 'paths']
+
+def paths(root, paths=None):
+    '''Build paths from a directory spec.
+
+    Arguments:
+        root (str): the root directory.
+        paths (dict): the directory structure.
+
+    Returns:
+        The initialized Paths object
+    '''
+    if isinstance(root, dict):
+        root, paths = '.', root
+    data = {'root': root} if root else {}
+
+    return Paths({v: Path(*k) for k, v in get_keys({'{root}': paths})},
+                 data)
 
 class Paths(object):
     '''
@@ -40,23 +58,11 @@ class Paths(object):
         for path in self._paths.values():
             path.parent = self
 
-    @staticmethod
-    def define(root, paths=None):
-        '''Build paths from a directory spec.
+    @wraps(paths)
+    @classmethod
+    def define(cls, *a, **kw):
+        return paths(*a, **kw)
 
-        Arguments:
-            root (str): the root directory.
-            paths (dict): the directory structure.
-
-        Returns:
-            The initialized Paths object
-        '''
-        if isinstance(root, dict):
-            root, paths = '.', root
-        data = {'root': root} if root else {}
-
-        return Paths({v: Path(*k) for k, v in get_keys({'{root}': paths})},
-                     data)
 
     @property
     def paths(self):
