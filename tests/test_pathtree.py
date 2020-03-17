@@ -35,7 +35,8 @@ def test_paths():
     assert isinstance(p['plot'], pt.Path)
     assert p['plot'].partial_format() == 'logs/a/plots/{step_name}/{plot_name}.png'
     assert p['plot'].glob_pattern == 'logs/a/plots/*/*.png'
-    assert isinstance(p['plot'].matching_files, list)
+    assert isinstance(p['plot'].glob(), list)
+    assert tuple(sorted(list(p['plot'].iglob()))) == tuple(p['plot'].glob())
 
     # test that format kw are different
     p2 = paths_.format(root='logs', log_id='b')

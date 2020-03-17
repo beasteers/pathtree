@@ -160,6 +160,9 @@ class Paths(object):
         '''
         return {name: self[name].partial_format(**kw) for name in self}
 
+    def globs(self, *names):
+        return [f for name in names for f in self[name].glob()]
+
 
 class Path(os.PathLike):
     '''
@@ -291,6 +294,19 @@ class Path(os.PathLike):
         '''Find all matching files. unspecified fields are set as a wildcard (asterisk).'''
         return sorted(glob.glob(self.glob_pattern))
 
+    def iglob(self):
+        return glob.iglob(self.glob_pattern)
+
+
+
+def sglob(*f):
+    '''Enhanced glob. Pass path parts and return sorted list of files.'''
+    return sorted(glob.glob(os.path.join(*f)))
+
+def fbase(f, up=0):
+    '''Return the file basename up x directories.'''
+    return os.path.basename(os.path.abspath(os.path.join(f, *(['..']*up))))
+
 
 def get_keys(data, keys=None):
     '''Recursively traverse a nested dict and return the trail of keys, and the final value'''
@@ -298,7 +314,7 @@ def get_keys(data, keys=None):
     for key, value in data.items():
         keys_ = keys + (key,)
         if isinstance(value, dict):
-            for keys_, value in get_keys(value, keys_):
-                yield keys_, value
+            for keys_, val in get_keys(value, keys_):
+                yield keys_, val
         else:
             yield keys_, value
