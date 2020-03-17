@@ -12,7 +12,8 @@ def test_paths():
             'model_spec.pkl': 'model_spec',
             'plots': {
                 '{step_name}': {
-                    '{plot_name}.png': 'plot'
+                    '{plot_name}.png': 'plot',
+                    '{plot_name}.jpg': 'plot_jpg',
                 }
             }
         }
@@ -64,10 +65,13 @@ def test_paths():
         'plot_name': 'f1_score',
     }
 
-    plot_data = plot_file.parse('some/logs/12345/plots/0002/f1_score.png')
+    png_file = 'some/logs/12345/plots/0002/f1_score.png'
+    jpg_file = 'some/logs/12345/plots/0002/f1_score.jpg'
+    plot_data = plot_file.parse(png_file)
     assert set(plot_data.items()) == set(expected.items())
-    plot_data = plot_file.parse('some/logs/12345/plots/0002/f1_score.png')
-    assert set(plot_data.items()) == set(expected.items())
+    # assert paths.translate(png_file, 'plot', 'plot_jpg').format() == jpg_file
+    assert plot_file.translate(png_file, 'plot_jpg').format() == jpg_file
+    # TODO: More intensive parse tests
 
 def test_formatter():
     assert pt.pformat('{a}/b/{c}/d/{e}', e='eee') == '{a}/b/{c}/d/eee'

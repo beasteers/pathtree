@@ -2,6 +2,7 @@ import os
 import glob
 import pathlib
 from functools import wraps
+import inspect
 from .pformat import *
 
 __all__ = ['Paths', 'Path', 'paths']
@@ -121,6 +122,9 @@ class Paths(object):
             name (str): the name of the path pattern to use.
         '''
         return self[name].parse(path)
+
+    def translate(self, file, form, to, **kw):
+        return self[to].specify(**self[form].parse(file, **kw))
 
     def mkdirs(self, exist_ok=True):
         '''Instantiate all fully specified directories'''
@@ -259,6 +263,15 @@ class Path(os.PathLike):
     def copy(self):
         return Path(self._path, data=dict(self.data), parent=self.parent)
 
+    def find_sibling(self, name):
+        '''Find another path in the root tree.'''
+        try:
+            return self.parent[name]
+        except AttributeError as e:
+            raise AttributeError('No related paths are available.')
+        except KeyError as e:
+            raise KeyError('No related paths by that name are available.')
+
     def format(self, **kw):
         '''Insert data into the path string. (Works like string format.)
 
@@ -273,11 +286,21 @@ class Path(os.PathLike):
         pattern = self.partial_format() if use_data else self.path
         r = parse(pattern, path)
         if not r:
-            raise ValueError('Could not parse path using pattern '
-                             '(\n\tpath:{}) (\n\tpattern:{})'.format(
-                                 path, pattern))
+            raise ValueError(inspect.cleandoc('''
+                Could not parse path using pattern.
+                    path:{}
+                    pattern:{}
+
+                `path.parse(path)` will call self.partial_format() by default before parsing
+                so any specified keys will be fixed. This is helpful to dodge ambiguous parsing
+                cases. To disable this pass `use_data=False` to parse.
+                '''.format(path, pattern)))
         data = r.named
-        return {**self.path_data, **data} if use_data else data
+        return {**self.path_data, **data}
+
+    def translate(self, path, to, **kw):
+        '''Translate the paths from '''
+        return self.find_sibling(to).specify(**self.parse(path, **kw))
 
     def maybe_format(self, **kw):
         '''Try to format a field. If it fails, return as a Path object.'''
