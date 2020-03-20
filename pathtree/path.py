@@ -5,9 +5,9 @@ from functools import wraps
 import inspect
 from .pformat import *
 
-__all__ = ['Paths', 'Path', 'paths']
+__all__ = ['Paths', 'Path', 'tree']
 
-def paths(root, paths=None):
+def tree(root, paths=None):
     '''Build paths from a directory spec.
 
     Arguments:
@@ -21,8 +21,10 @@ def paths(root, paths=None):
         root, paths = '.', root
     data = {'root': root} if root else {}
 
-    return Paths({v: Path(*k) for k, v in get_keys({'{root}': paths})},
-                 data)
+    return Paths(
+        {v: Path(*k) for k, v in get_keys({'{root}': paths})},
+        data)
+
 
 class Paths(object):
     '''
@@ -59,10 +61,10 @@ class Paths(object):
         for path in self._paths.values():
             path.parent = self
 
-    @wraps(paths)
+    @wraps(tree)
     @classmethod
     def define(cls, *a, **kw):
-        return paths(*a, **kw)
+        return tree(*a, **kw)
 
 
     @property
