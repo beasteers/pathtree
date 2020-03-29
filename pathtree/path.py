@@ -237,6 +237,12 @@ class Path(os.PathLike):
     def __truediv__(self, path):
         return self.join(path)
 
+    def __add__(self, obj):
+        if isinstance(obj, str):
+            return self.repath(self.path_pattern + obj)
+        if isinstance(obj, dict):
+            return self.specify(**obj)
+
     def __lshift__(self, n):
         return self.up(n)
 
@@ -430,22 +436,24 @@ class Path(os.PathLike):
         return itertools.chain((
             pathlib.Path(f) for f in self.glob()), fs) if include else fs
 
-    def next_unique(self, i=0, nzeros=4, suffix='_{:0{nzeros}}'):
+    def next_unique(self, i=1, suffix='_{:02}'):
         '''Get the next filename that doesn't exist.
         e.g. Path('results/')
         '''
         f = self.format()
-        f_pattern = '{0}{2}{1}'.format(*os.path.splitext(f), suffix)
-        while os.path.isfile(f):
-            f, i = f_pattern.format(i, nzeros=nzeros), i + 1
+        f_pattern = '{}{{}}{}'.format(*os.path.splitext(f))
+        sfx = suffix if callable(suffix) else suffix.format
+        while os.path.exists(f):
+            f, i = f_pattern.format(sfx(i)), i + 1
         return f
 
     def prefix(self, prefix='{prefix}_'):
-        return self.up().join(prefix + os.path.basename(self.path_pattern))
+        return self.up().join('{}{}'.format(
+            prefix, os.path.basename(self.path_pattern)))
 
     def suffix(self, suffix='_{suffix}'):
         froot, ext = os.path.splitext(self.path_pattern)
-        return self.repath(froot + suffix + ext)
+        return self.repath('{}{}{}'.format(froot, suffix, ext))
 
     '''
 
@@ -481,13 +489,17 @@ class Path(os.PathLike):
         '''Write to file. Set mode='b' to write as bytes.'''
         self.make(1)
         b = 'b' in mode if mode else isinstance(x, (bytes, bytearray))
-        self.write_bytes(x, **kw) if b else self.write_text(x, **kw)
+        self.write_bytes(x, **kw) if b else self.write_text(str(x), **kw)
         return self
 
     def read(self, mode='', **kw):
         '''Read file. Set mode='b' to read as bytes.'''
         return self.read_bytes(**kw) if 'b' in mode else self.read_text(**kw)
 
+    def move(self, f_new):
+        '''Move the file to a new name.'''
+        os.rename(self.format(), f_new)
+        return self.repath(f_new)
 
 
 def sglob(*f):
@@ -497,6 +509,21 @@ def sglob(*f):
 def fbase(f, up=0):
     '''Return the file basename up x directories.'''
     return os.path.basename(os.path.abspath(os.path.join(f, *(['..']*up))))
+
+
+def backup(path, mode='index'):
+    path = Path(path) if not isinstance(Path) else path
+    if path.exists():
+        if mode == 'index':
+            bkp_path = path.next_unique(1)
+        elif mode == 'bkp':
+            bkp_path = path + '.bkp'
+        elif mode == 'bkp':
+            bkp_path = path + '~'
+
+        os.rename(path, bkp_path)
+        print('moved existing file', path, 'to', bkp_path)
+
 
 
 def get_keys(data, keys=None):
