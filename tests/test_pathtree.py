@@ -2,16 +2,11 @@ import os
 import pathtree as pt
 import pytest
 
+ROOT = os.path.join(os.path.dirname(__file__), 'data')
 
-def test_paths():
-    # TODO: test Paths.add, Paths.get
-
-    ROOT = os.path.join(os.path.dirname(__file__), 'data')
-
-    # Test: tree, Paths.define
-
-    paths = pt.Paths.define('logs', {'{log_id}': {}})
-    paths = pt.tree('logs', {
+@pytest.fixture
+def base_paths():
+    return pt.tree('logs', {
         '{log_id}': {
             'model.h5': 'model',
             'model_spec.pkl': 'model_spec',
@@ -23,29 +18,100 @@ def test_paths():
             },
             'results': {'{step_name}.csv': 'result_step'},
             'models': {'{step_name}.h5': 'model_step'},
-        }
+        },
+        'meta.json': 'meta',
     })
-    print(paths)
+
+@pytest.fixture
+def paths(base_paths):
+    yield base_paths.specify(log_id='a')
+
+@pytest.fixture
+def paths_rw(base_paths):
+    paths_rw = base_paths.specify(root=ROOT, log_id='a')
+    yield paths_rw
+
+    # Cleanup: paths.root.rmglob
+
+    assert list(paths_rw.root.rglob())
+    paths_rw.root.rmglob(include=True)
+    assert not list(paths_rw.root.rglob())
+
+
+def test_specify(base_paths):
+    print(base_paths)
+    # TODO: test Paths.add, Paths.get
 
     # Test: paths.get, getattr(paths, k)
 
     with pytest.raises(AttributeError):
-        paths.log_id
+        base_paths.log_id
 
     # Test: specify, unspecify
 
-    paths_ = paths.specify(log_id='a')
-    paths_2 = paths_.unspecify('log_id')
-    print(paths_.model, type(paths_.model), type(paths_.model._path))
-    print(paths_.model.unspecified)
-    assert paths_.model.unspecified.s == '{root}/{log_id}/model.h5'
+    paths = base_paths.specify(log_id='a')
+    paths2 = paths.unspecify('log_id')
+    print(paths.model, type(paths.model), type(paths.model._path))
+    print(paths.model.unspecified)
+    assert paths.model.unspecified.s == '{root}/{log_id}/model.h5'
 
-    assert paths_ is not paths and paths_2 is not paths_
-    assert 'log_id' in paths_.data
-    assert 'log_id' not in paths_2.data
-    assert not paths.fully_specified
+    assert paths is not base_paths and paths2 is not paths
+    assert 'log_id' in paths.data
+    assert 'log_id' not in paths2.data
+    assert not base_paths.fully_specified
     assert paths.specify(log_id=1, step_name=2, plot_name=3).fully_specified
 
+
+
+def test_format(base_paths):
+    # Test: format, partial_format, glob_pattern, glob
+
+    paths = base_paths.specify(log_id='a')
+
+    # convert to dict of strings
+    pm = paths.model
+    assert pm.fully_specified
+    p = paths.format()
+
+    # check Paths.format types
+    assert isinstance(p['model'], str)
+    assert isinstance(p['plot'], pt.Path)
+    assert all(isinstance(p_, (str, pt.Path)) for p_ in p.values())
+    assert all(isinstance(p_, (str, pt.Path)) for p_ in paths.partial_format().values())
+
+    # check Paths.globs types
+    assert isinstance(paths.globs(), list)
+
+    # test fully specified strings have been formatted
+    assert pm.s == p['model']
+    assert p['model'] == 'logs/a/model.h5'
+    assert p['model_spec'] == 'logs/a/model_spec.pkl'
+
+    pm_2 = pm.unspecify('log_id')
+    assert not pm_2.fully_specified
+
+    # test underspecified paths have not
+    assert isinstance(p['plot'], pt.Path)
+    assert p['plot'].partial_format() == 'logs/a/plots/{step_name}/{plot_name}.png'
+    assert p['plot'].glob_pattern == 'logs/a/plots/*/*.png'
+    assert isinstance(p['plot'].glob(), list)
+    assert tuple(sorted(list(p['plot'].iglob()))) == tuple(p['plot'].glob())
+
+    # test that format kw are different
+    p2 = paths.format(root='logs', log_id='b')
+    assert p['model'] == 'logs/a/model.h5'
+    assert p2['model_spec'] == 'logs/b/model_spec.pkl'
+
+    # test in a loop
+    plot_f = p['plot'].specify(step_name='epoch_100')
+    print(repr(plot_f))
+    for n in 'abcde':
+        f = plot_f.format(plot_name=n)
+        print(n, f)
+        assert f == 'logs/a/plots/epoch_100/{}.png'.format(n)
+
+
+def test_add(paths):
     # Test: Paths.add
 
     # when you don't have a pre-named node
@@ -71,52 +137,9 @@ def test_paths():
     print(paths_add)
     assert paths_add.model_step4.path_pattern == '{root}/{log_id}/models/{step_name}-4.h5'
 
-    # Test: format, partial_format, glob_pattern, glob
 
-    # convert to dict of strings
-    pm = paths_.model
-    assert pm.fully_specified
-    p = paths_.format()
-
-    # check Paths.format types
-    assert isinstance(p['model'], str)
-    assert isinstance(p['plot'], pt.Path)
-    assert all(isinstance(p_, (str, pt.Path)) for p_ in p.values())
-    assert all(isinstance(p_, (str, pt.Path)) for p_ in paths_.partial_format().values())
-
-    # check Paths.globs types
-    assert isinstance(paths_.globs(), list)
-
-    # test fully specified strings have been formatted
-    assert pm.s == p['model']
-    assert p['model'] == 'logs/a/model.h5'
-    assert p['model_spec'] == 'logs/a/model_spec.pkl'
-
-    pm_2 = pm.unspecify('log_id')
-    assert not pm_2.fully_specified
-
-    # test underspecified paths have not
-    assert isinstance(p['plot'], pt.Path)
-    assert p['plot'].partial_format() == 'logs/a/plots/{step_name}/{plot_name}.png'
-    assert p['plot'].glob_pattern == 'logs/a/plots/*/*.png'
-    assert isinstance(p['plot'].glob(), list)
-    assert tuple(sorted(list(p['plot'].iglob()))) == tuple(p['plot'].glob())
-
-    # test that format kw are different
-    p2 = paths_.format(root='logs', log_id='b')
-    assert p['model'] == 'logs/a/model.h5'
-    assert p2['model_spec'] == 'logs/b/model_spec.pkl'
-
-    # test in a loop
-    plot_f = p['plot'].specify(step_name='epoch_100')
-    print(repr(plot_f))
-    for n in 'abcde':
-        f = plot_f.format(plot_name=n)
-        print(n, f)
-        assert f == 'logs/a/plots/epoch_100/{}.png'.format(n)
-
-    # test parsing
-    paths_p = paths.specify(root='some/logs')
+def test_parse(base_paths):
+    paths = base_paths.specify(root='some/logs')
 
     expected = {
         'root': 'some/logs',
@@ -129,17 +152,18 @@ def test_paths():
 
     png_file = 'some/logs/12345/plots/0002/f1_score.png'
     jpg_file = 'some/logs/12345/plots/0002/f1_score.jpg'
-    assert set(paths_p.plot.parse(png_file).items()) == set(expected.items())
-    assert set(paths_p.parse(png_file, 'plot').items()) == set(expected.items())
+    assert set(paths.plot.parse(png_file).items()) == set(expected.items())
+    assert set(paths.parse(png_file, 'plot').items()) == set(expected.items())
     # assert paths.translate(png_file, 'plot', 'plot_jpg').format() == jpg_file
-    assert paths_p.plot.translate(png_file, 'plot_jpg').format() == jpg_file
+    assert paths.plot.translate(png_file, 'plot_jpg').format() == jpg_file
     assert paths.translate(png_file, 'plot', 'plot_jpg', use_data=False).format() == jpg_file
 
     with pytest.raises(ValueError):
-        paths_p.plot.parse('broken/some/logs/12345/plots/0002/f1_score.png')
+        paths.plot.parse('broken/some/logs/12345/plots/0002/f1_score.png')
     # TODO: More intensive parse tests
 
-    paths_rw = paths_.specify(root=ROOT)
+
+def test_read_write(paths_rw):
     pm = paths_rw.specify(step_name='step_nonexistant').model_step
 
     paths_rw.makedirs()
@@ -174,11 +198,25 @@ def test_paths():
     pm.touch()
     assert pm.exists()
 
-    # Cleanup: paths.root.rmglob
+    # Test: next_unique
 
-    assert list(paths_rw.root.rglob())
-    paths_rw.root.rmglob(include=True)
-    assert not list(paths_rw.root.rglob())
+    pmeta = paths_rw.meta
+    assert not pmeta.exists() and pmeta.touch().exists()
+    assert 'meta.json' in pmeta
+
+    for i in range(5):
+        pmeta_i = pt.Path(pmeta.next_unique(1))
+        print(pmeta_i)
+        assert not pmeta_i.exists()
+        assert pmeta_i.touch().exists()
+        assert 'meta.json' not in pmeta_i
+        assert '{}.json'.format(i+1) in pmeta_i
+
+    pmeta.rmglob()
+    print(pmeta, pmeta.suffix('_*'), pmeta.suffix('_*').glob())
+    pmeta.suffix('_*').rmglob()
+    assert not pmeta.exists()
+    assert not pmeta.suffix('_*').glob()
 
 
 def test_misc():

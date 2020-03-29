@@ -1,6 +1,7 @@
 import os
 import glob
 import pathlib
+import itertools
 from functools import wraps
 import inspect
 from parse import parse as parse_
@@ -230,6 +231,21 @@ class Path(os.PathLike):
     def __getattr__(self, name):
         return getattr(self.path, name)
 
+    def __contains__(self, substr):
+        return substr in self.partial_format()
+
+    def __truediv__(self, path):
+        return self.join(path)
+
+    def __lshift__(self, n):
+        return self.up(n)
+
+    '''
+
+    Path Forms
+
+    '''
+
     @property
     def path_pattern(self):
         '''The path as an unformatted string'''
@@ -242,8 +258,20 @@ class Path(os.PathLike):
 
     @property
     def s(self):
-        '''Convert to string'''
+        '''Convert to string (partial_format)'''
         return str(self)
+
+    @property
+    def f(self):
+        '''Convert to string (format)'''
+        return self.format()
+
+
+    '''
+
+    Data Manipulation
+
+    '''
 
     @property
     def path_data(self):
@@ -283,6 +311,12 @@ class Path(os.PathLike):
         '''Get a path without any attached data.'''
         return Path(self._path)
 
+    '''
+
+    Path Manipulation
+
+    '''
+
     @property
     def safe(self):
         '''Make sure the path does not go above root.'''
@@ -295,8 +329,6 @@ class Path(os.PathLike):
     def join(self, *f):
         '''Make a copy and append directories to the end.'''
         return self.repath(self._path, *f)
-
-    j = join
 
     @property
     def copy(self):
@@ -316,6 +348,13 @@ class Path(os.PathLike):
             raise AttributeError('No related paths are available.')
         except KeyError as e:
             raise KeyError('No related paths by that name are available.')
+
+
+    '''
+
+    Format
+
+    '''
 
     def format(self, **kw):
         '''Insert data into the path string. (Works like string format.)
@@ -364,6 +403,12 @@ class Path(os.PathLike):
     def format_only(self, **kw):
         return pformat(self.path_pattern, **kw)
 
+    '''
+
+    Glob / File Patterns
+
+    '''
+
     @property
     def glob_pattern(self):
         '''Format a field, setting all unspecified fields as a wildcard (asterisk).'''
@@ -377,9 +422,36 @@ class Path(os.PathLike):
         '''Find all matching files as a generator.'''
         return glob.iglob(os.path.join(self.glob_pattern, *f))
 
-    def rglob(self, *f):
+    def rglob(self, *f, include=None):
         '''Find all matching files recursively as a generator.'''
-        return self.path.rglob(os.path.join(*(f or '*')))
+        # if the path isn't an existing dir, assume it's a glob pattern
+        include = not self.is_dir() if include is None else include
+        fs = self.path.rglob(os.path.join(*(f or '*')))
+        return itertools.chain((
+            pathlib.Path(f) for f in self.glob()), fs) if include else fs
+
+    def next_unique(self, i=0, nzeros=4, suffix='_{:0{nzeros}}'):
+        '''Get the next filename that doesn't exist.
+        e.g. Path('results/')
+        '''
+        f = self.format()
+        f_pattern = '{0}{2}{1}'.format(*os.path.splitext(f), suffix)
+        while os.path.isfile(f):
+            f, i = f_pattern.format(i, nzeros=nzeros), i + 1
+        return f
+
+    def prefix(self, prefix='{prefix}_'):
+        return self.up().join(prefix + os.path.basename(self.path_pattern))
+
+    def suffix(self, suffix='_{suffix}'):
+        froot, ext = os.path.splitext(self.path_pattern)
+        return self.repath(froot + suffix + ext)
+
+    '''
+
+    Read / Write / Create / Remove
+
+    '''
 
     def make(self, up=0):
         '''Create this (or up a) directory.'''
@@ -397,14 +469,12 @@ class Path(os.PathLike):
         p.rmdir() if self.is_dir() else os.remove(p.format()) if self.is_file() else None
         return self
 
-    def rmglob(self, *f, include=False):
+    def rmglob(self, *f, include=None):
         '''Recursively remove files matching join(*f). Set include=True, to
         remove this node as well.'''
-        fs = sorted(self.safe.rglob(*f), key=lambda p: p.parts, reverse=True)
+        fs = list(sorted(self.safe.rglob(*f, include=include), key=lambda p: p.parts, reverse=True))
         for fi in fs:
             fi.rmdir() if fi.is_dir() else os.remove(fi)
-        if include:
-            self.rm()
         return self
 
     def write(self, x, mode='', **kw):
