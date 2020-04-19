@@ -19,8 +19,11 @@ def tree(root='.', paths=None, data=None):
     Returns:
         The initialized Paths object
     '''
-    if isinstance(root, dict):
+    if not isinstance(root, str):
         root, paths = '.', root
+    paths = paths or {}
+    if isinstance(paths, (list, tuple, set)):
+        paths = {k: k for k in paths}
     return Paths(
         {v: Path(*k) for k, v in get_keys({'{root}': {'': 'root', **paths}})},
         dict(data or {}, root=root))
@@ -113,6 +116,9 @@ class Paths(object):
             for name in self.paths
         ]))
 
+    def __contains__(self, path):
+        return path in self.paths
+
     def __iter__(self):
         return iter(self.paths)
 
@@ -147,16 +153,17 @@ class Paths(object):
 
     def update(self, **kw):
         '''Update format data in place.'''
-        self.data.update(kw)
-        return self
+        return self.specify(inplace=True, **kw)
 
-    def specify(self, **kw):
+    def specify(self, *, inplace=False, **kw):
         '''Return a new Paths object with added variables for each pattern.'''
-        return self.copy.update(**kw)
+        p = self if inplace else self.copy
+        p.data.update(kw)
+        return p
 
-    def unspecify(self, *keys):
+    def unspecify(self, *keys, inplace=False):
         '''Remove keys from paths dictionary'''
-        p = self.copy
+        p = self if inplace else self.copy
         for key in keys:
             p.data.pop(key, None)
         return p
@@ -336,6 +343,11 @@ class Path(os.PathLike):
         '''Make a copy and append directories to the end.'''
         return self.repath(self._path, *f)
 
+    def assign_name(self, name):
+        '''Assign a new name to '''
+        if self.parent:
+            self.parent.paths[name] = self
+
     @property
     def copy(self):
         '''Create a copy of the path object.'''
@@ -496,6 +508,11 @@ class Path(os.PathLike):
         '''Read file. Set mode='b' to read as bytes.'''
         return self.read_bytes(**kw) if 'b' in mode else self.read_text(**kw)
 
+    def open(self, mode='r', *a, makedir=True, **kw):
+        if makedir and any(m in mode for m in ('wa' if makedir is True else makedir)):
+            self.up().make()
+        return self.path.open(mode, *a, **kw)
+
     def move(self, f_new):
         '''Move the file to a new name.'''
         os.rename(self.format(), f_new)
@@ -526,13 +543,16 @@ def backup(path, mode='index'):
 
 
 
-def get_keys(data, keys=None):
+def get_keys(data, keys=None, iters_as_keys=False):
     '''Recursively traverse a nested dict and return the trail of keys, and the final value'''
     keys = tuple(keys or ())
     for key, value in data.items():
         keys_ = keys + (key,)
         if isinstance(value, dict):
-            for keys_, val in get_keys(value, keys_):
+            for keys_, val in get_keys(value, keys_, iters_as_keys):
+                yield keys_, val
+        elif iters_as_keys and isinstance(value, (tuple, list, set)):
+            for val in value:
                 yield keys_, val
         else:
             yield keys_, value

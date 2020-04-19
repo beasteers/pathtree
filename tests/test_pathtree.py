@@ -38,6 +38,28 @@ def paths_rw(base_paths):
     assert not list(paths_rw.root.rglob())
 
 
+
+def test_init():
+    paths = pt.tree('logs', {'{log_id}': {'model.h5': 'model'}})
+    assert paths.data['root'] == 'logs'
+    assert set(paths.paths) == {'model', 'root'}
+
+    paths = pt.tree({'plots', 'model.h5'})
+    assert paths.data['root'] == '.'
+    assert set(paths.paths) == {'plots', 'model.h5', 'root'}
+    assert set(paths.format().values()) == {'./plots', './model.h5', '.'}
+
+    paths = pt.tree('logsss', ['plots', 'model.h5'])
+    assert paths.data['root'] == 'logsss'
+    assert set(paths.paths) == {'plots', 'model.h5', 'root'}
+    assert set(paths.format().values()) == {'logsss/plots', 'logsss/model.h5', 'logsss'}
+
+    # legacy
+    paths = pt.Paths.define('logs', {'{log_id}': {'model.h5': 'model'}})
+    assert paths.data['root'] == 'logs'
+    assert set(paths.paths) == {'model', 'root'}
+
+
 def test_specify(base_paths):
     print(base_paths)
     # TODO: test Paths.add, Paths.get

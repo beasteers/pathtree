@@ -13,10 +13,15 @@ pip install path-tree
 
 ### Quick start
 
+NOTE: I want to update this to be more illustrative and less verbose. The problem is that this package can do a lot, but it's hard to show it concisely out of context. I'm not sure when I'll get a chance, but I'll try to get to it!
+
+Also, I apologize for not having an API Reference. I haven't quite ironed that into my deployment pipeline yet!
+
 ```python
 import pathtree
 
-paths = pathtree.paths('./logs', {
+# instantiate the path tree - dict nesting == folder nesting !
+paths = pathtree.tree('./logs', {
     '{log_id}': {
         'model.h5': 'model',
         'model_spec.pkl': 'model_spec',
@@ -31,10 +36,16 @@ paths = pathtree.paths('./logs', {
 
 ...
 
+# specify variables along the way as they become available
 paths.update(log_id=12345)
+
+# usually they aren't inserted until you call format, so you can still change them
+paths.update(log_id=12346)
 
 ...
 
+# when you're ready to construct the path, just call .format()
+# with the remaining variables and it will give you the formatted
 plt.imwrite(paths.plot.format(i_epoch=5, plot_name='f1_score'))
 # writes to ./logs/12345/plots/epoch_0005/f1_score.png
 ```
@@ -85,23 +96,32 @@ import pathtree
 # of the fact that os.path.join('plots', '') == 'plots'.
 # So the name assigned to the blank string is naming the
 # directory
-base_paths = pathtree.paths('./logs', {
+base_paths = pathtree.tree('./logs', {
     '{log_id}': {
         'model.h5': 'model',
         'model_spec.pkl': 'model_spec',
         'plots': {
             'epoch_{i_epoch:04d}': {
                 '{plot_name}.png': 'plot',
-                '': 'plot_dir'
+                '': 'plot_dir' # name for the directory
             }
         }
     }
 })
 
-# specify the log_id
+# specify the log_id - specify returns a copy, update operates inplace
 paths = base_paths.specify(log_id=12345)
 
 ```
+
+#### Basic Concepts
+
+ - `Paths` - a collection of paths items as defined using `pathtree.tree`.
+        Essentially, it is a wrapper around a flat dictionary of name -> path
+        and a data dictionary that is provided to all paths format.
+ - `Path` - a single path. It extends `os.PathLike` so it can be used where
+        path objects are expected (e.g. `open(path).read()`). It is a wrapper around a `pathlib.Path` object and a data dictionary.
+        It provides basic path operations (`join('subdir')`, `.up(2)` to go up 2 parent directories, `.glob()` glob replacing missing fields with `'*'`).
 
 #### Conversion to string
 
@@ -230,7 +250,3 @@ expected = {
 plot_data = plot_file.parse('./logs/12345/plots/0002/f1_score.png')
 assert set(plot_data.items()) == set(expected.items())
 ```
-
-### Usage Example
-Here's a screenshot from one of the projects I'm using pathtree in and I really like how it simplifies defining the structure of your project files. I'm able to take a bunch of h5 files, parse out the path components, and translate them to their corresponding audio and jams file in another directory all while keeping a single point of truth for my file structure in the path definition. :)
-![jupyter lab usage example](/assets/example.png)
