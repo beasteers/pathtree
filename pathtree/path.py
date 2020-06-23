@@ -7,7 +7,7 @@ import inspect
 from parse import parse as parse_
 from pformat import *
 
-__all__ = ['Paths', 'Path', 'tree']
+__all__ = ['Paths', 'Path', 'tree', 'UnderspecifiedError']
 
 def tree(root='.', paths=None, data=None):
     '''Build paths from a directory spec.
@@ -235,8 +235,8 @@ class Path(os.PathLike):
     def __repr__(self):
         return '<Path "{}" data={}>'.format(self.path_pattern, self.path_data)
 
-    def __getattr__(self, name):
-        return getattr(self.path, name)
+    # def __getattr__(self, name):
+    #     return getattr(self.path, name)
 
     def __contains__(self, substr):
         return substr in self.partial_format()
@@ -366,6 +366,31 @@ class Path(os.PathLike):
             raise AttributeError('No related paths are available.')
         except KeyError as e:
             raise KeyError('No related paths by that name are available.')
+
+
+    '''
+
+    Path Methods
+
+    '''
+
+    def exists(self):
+        return self.path.exists()
+
+    def is_file(self):
+        return self.path.is_file()
+
+    def is_dir(self):
+        return self.path.is_dir()
+
+    def read_text(self, *a, **kw):
+        return self.path.read_text(*a, **kw)
+
+    def write_text(self, *a, **kw):
+        return self.path.write_text(*a, **kw)
+
+    def rmdir(self, *a, **kw):
+        return self.path.rmdir(*a, **kw)
 
 
     '''

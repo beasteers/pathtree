@@ -1,5 +1,8 @@
 
-
+# 0.0.16
+ - Bug Fix: removed `Path.__getattr__` (which would get `pathlib.Path(self.format).<attr>`) because it means that missing attributes would raise a `UnderspecifiedError` which would break things like pickling (and probably a bunch of other things).
+   - this was there to provide access to `pathlib` attributes without duplicating everything. Will look into possibly subclassing?
+   - this may break things that were relying on the full set of pathlib attributes, but that's fine because this always bothered me.
 
 # 0.0.15
  - add path.open which will make sure the parent directory exists before opening (only in write modes)
