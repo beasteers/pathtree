@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(name='path-tree',
-                 version='0.0.16',
+                 version='0.0.18',
                  description='Define named directory structure using placeholders',
                  long_description=open('README.md').read().strip(),
                  long_description_content_type='text/markdown',

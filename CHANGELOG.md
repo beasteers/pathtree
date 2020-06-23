@@ -1,3 +1,5 @@
+# 0.0.18
+ - fix recursive `Paths.__getattr__` with pickle/multiprocessing
 
 # 0.0.16
  - Bug Fix: removed `Path.__getattr__` (which would get `pathlib.Path(self.format).<attr>`) because it means that missing attributes would raise a `UnderspecifiedError` which would break things like pickling (and probably a bunch of other things).

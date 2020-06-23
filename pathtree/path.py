@@ -65,7 +65,7 @@ class Paths(object):
     plot_files = glob.glob(paths['plot'].format(plot_name='*'))
 
     '''
-
+    _paths = None
     def __init__(self, paths, data=None):
         self._paths = paths
         self.data = {} if data is None else data
@@ -123,13 +123,12 @@ class Paths(object):
         return iter(self.paths)
 
     def __getitem__(self, name):
-        return self.paths[name]
+        return self._paths[name]
 
     def __getattr__(self, name):
-        try:
-            return self.paths[name]
-        except KeyError:
-            raise AttributeError()
+        if name != '_paths' and self._paths and name in self._paths:
+            return self._paths[name]
+        raise AttributeError(name)
 
     def parse(self, path, name):
         '''Parse data from a formatted string (reverse of string format)
