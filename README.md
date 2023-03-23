@@ -1,3 +1,7 @@
+# Archived - see https://github.com/beasteers/pathtrees for latest version
+
+I created a new version because the old one had a different pypi install name from the import name so I created one that was consistent across the board - `pathtrees`. It also has a much cleaner implementation and has less bespoke/obscure functionality
+
 # pathtree
 Named path hierarchies
 
